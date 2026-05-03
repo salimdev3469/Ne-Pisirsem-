@@ -120,9 +120,14 @@ export async function fetchIngredients(activeOnly = true): Promise<IngredientDoc
 
 export async function fetchRecipesForMealType(
   mealTypeId: string,
-  maxItems = 250
+  maxItems = 250,
+  activeOnly = true
 ): Promise<RecipeDoc[]> {
-  let query = adminDb.collection(COLLECTIONS.recipes).where('isActive', '==', true).limit(maxItems);
+  let query = adminDb.collection(COLLECTIONS.recipes).limit(maxItems);
+
+  if (activeOnly) {
+    query = query.where('isActive', '==', true);
+  }
 
   if (mealTypeId.trim().length > 0) {
     query = query.where('mealTypeIds', 'array-contains', mealTypeId.trim());
@@ -315,4 +320,16 @@ export async function decideSuggestion(input: {
     },
     { merge: true }
   );
+}
+
+export async function deleteMealType(id: string): Promise<void> {
+  await adminDb.collection(COLLECTIONS.mealTypes).doc(id.trim()).delete();
+}
+
+export async function deleteIngredient(id: string): Promise<void> {
+  await adminDb.collection(COLLECTIONS.ingredients).doc(id.trim()).delete();
+}
+
+export async function deleteRecipe(id: string): Promise<void> {
+  await adminDb.collection(COLLECTIONS.recipes).doc(id.trim()).delete();
 }

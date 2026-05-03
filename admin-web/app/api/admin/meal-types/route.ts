@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { requireAdmin } from '@/lib/auth';
-import { fetchMealTypes, upsertMealType } from '@/lib/firestore-repository';
+import { deleteMealType, fetchMealTypes, upsertMealType } from '@/lib/firestore-repository';
 import { apiErrorResponse } from '@/lib/http';
 
 export const dynamic = 'force-dynamic';
@@ -13,6 +13,10 @@ const schema = z.object({
   isActive: z.boolean().optional(),
   imageUrl: z.string().trim().optional(),
   lottieUrl: z.string().trim().optional()
+});
+
+const deleteSchema = z.object({
+  id: z.string().trim().min(1)
 });
 
 export async function GET(request: Request) {
@@ -32,6 +36,17 @@ export async function POST(request: Request) {
 
     const id = await upsertMealType(payload);
     return Response.json({ success: true, id });
+  } catch (error) {
+    return apiErrorResponse(error);
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    await requireAdmin(request);
+    const payload = deleteSchema.parse(await request.json());
+    await deleteMealType(payload.id);
+    return Response.json({ success: true });
   } catch (error) {
     return apiErrorResponse(error);
   }

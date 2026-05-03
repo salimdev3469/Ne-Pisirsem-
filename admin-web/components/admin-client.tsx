@@ -14,9 +14,39 @@ type SuggestionRow = {
   moderationNote?: string | null;
 };
 
-type MealTypeRow = { id: string; name: string; order: number; isActive: boolean };
-type IngredientRow = { id: string; displayName: string; category: string; isActive: boolean };
-type RecipeRow = { id: string; title: string; mealTypeIds: string[]; ingredientIds: string[] };
+type MealTypeRow = {
+  id: string;
+  name: string;
+  order: number;
+  isActive: boolean;
+  imageUrl?: string | null;
+  lottieUrl?: string | null;
+};
+
+type IngredientRow = {
+  id: string;
+  displayName: string;
+  category: string;
+  emoji: string;
+  aliases?: string[];
+  isActive: boolean;
+};
+
+type RecipeRow = {
+  id: string;
+  title: string;
+  description?: string | null;
+  mealTypeIds: string[];
+  ingredientIds: string[];
+  ingredients: string[];
+  steps: string[];
+  imageUrl?: string | null;
+  sourceUrl?: string | null;
+  youtubeUrl?: string | null;
+  cookingTime?: string | null;
+  difficulty?: string | null;
+  isActive: boolean;
+};
 
 function splitMultiValue(input: string): string[] {
   return input
@@ -25,6 +55,44 @@ function splitMultiValue(input: string): string[] {
     .filter(Boolean);
 }
 
+function joinMultiValue(input: string[] | undefined): string {
+  if (!input || input.length === 0) return '';
+  return input.join('\n');
+}
+
+const initialMealTypeForm = {
+  id: '',
+  name: '',
+  order: '0',
+  imageUrl: '',
+  lottieUrl: '',
+  isActive: true
+};
+
+const initialIngredientForm = {
+  id: '',
+  displayName: '',
+  category: 'Diğer',
+  emoji: '🍽️',
+  aliases: '',
+  isActive: true
+};
+
+const initialRecipeForm = {
+  id: '',
+  title: '',
+  description: '',
+  mealTypeIds: '',
+  ingredients: '',
+  steps: '',
+  imageUrl: '',
+  sourceUrl: '',
+  youtubeUrl: '',
+  cookingTime: '',
+  difficulty: '',
+  isActive: true
+};
+
 export default function AdminPage() {
   const [userEmail, setUserEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,42 +100,22 @@ export default function AdminPage() {
 
   const [status, setStatus] = useState('Hazır.');
   const [loading, setLoading] = useState(false);
+  const [uploadingRecipeImage, setUploadingRecipeImage] = useState(false);
 
   const [mealTypes, setMealTypes] = useState<MealTypeRow[]>([]);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
 
-  const [mealTypeForm, setMealTypeForm] = useState({
-    id: '',
-    name: '',
-    order: '0',
-    isActive: true
-  });
+  const [mealTypeForm, setMealTypeForm] = useState(initialMealTypeForm);
+  const [ingredientForm, setIngredientForm] = useState(initialIngredientForm);
+  const [recipeForm, setRecipeForm] = useState(initialRecipeForm);
 
-  const [ingredientForm, setIngredientForm] = useState({
-    id: '',
-    displayName: '',
-    category: 'Diğer',
-    emoji: '🍽️',
-    aliases: '',
-    isActive: true
-  });
+  const [editingMealTypeId, setEditingMealTypeId] = useState<string | null>(null);
+  const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null);
+  const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
 
-  const [recipeForm, setRecipeForm] = useState({
-    id: '',
-    title: '',
-    description: '',
-    mealTypeIds: '',
-    ingredients: '',
-    steps: '',
-    imageUrl: '',
-    sourceUrl: '',
-    youtubeUrl: '',
-    cookingTime: '',
-    difficulty: '',
-    isActive: true
-  });
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipeRow | null>(null);
 
   const [jsonPayload, setJsonPayload] = useState('');
   const [csvPayload, setCsvPayload] = useState('');
@@ -97,9 +145,77 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canCallAdmin]);
 
-  async function apiFetch(path: string, options: RequestInit = {}, requiresAuth = true) {
+  function resetMealTypeForm() {
+    setMealTypeForm(initialMealTypeForm);
+    setEditingMealTypeId(null);
+  }
+
+  function resetIngredientForm() {
+    setIngredientForm(initialIngredientForm);
+    setEditingIngredientId(null);
+  }
+
+  function resetRecipeForm() {
+    setRecipeForm(initialRecipeForm);
+    setEditingRecipeId(null);
+  }
+
+  function startMealTypeEdit(item: MealTypeRow) {
+    setEditingMealTypeId(item.id);
+    setMealTypeForm({
+      id: item.id,
+      name: item.name,
+      order: String(item.order),
+      imageUrl: item.imageUrl ?? '',
+      lottieUrl: item.lottieUrl ?? '',
+      isActive: item.isActive
+    });
+    setStatus(`Meal type düzenleniyor: ${item.name}`);
+  }
+
+  function startIngredientEdit(item: IngredientRow) {
+    setEditingIngredientId(item.id);
+    setIngredientForm({
+      id: item.id,
+      displayName: item.displayName,
+      category: item.category,
+      emoji: item.emoji,
+      aliases: joinMultiValue(item.aliases),
+      isActive: item.isActive
+    });
+    setStatus(`Ingredient düzenleniyor: ${item.displayName}`);
+  }
+
+  function startRecipeEdit(item: RecipeRow) {
+    setEditingRecipeId(item.id);
+    setRecipeForm({
+      id: item.id,
+      title: item.title,
+      description: item.description ?? '',
+      mealTypeIds: joinMultiValue(item.mealTypeIds),
+      ingredients: joinMultiValue(item.ingredients.length > 0 ? item.ingredients : item.ingredientIds),
+      steps: joinMultiValue(item.steps),
+      imageUrl: item.imageUrl ?? '',
+      sourceUrl: item.sourceUrl ?? '',
+      youtubeUrl: item.youtubeUrl ?? '',
+      cookingTime: item.cookingTime ?? '',
+      difficulty: item.difficulty ?? '',
+      isActive: item.isActive
+    });
+    setStatus(`Recipe düzenleniyor: ${item.title}`);
+  }
+
+  async function apiFetch<T = Record<string, unknown>>(
+    path: string,
+    options: RequestInit = {},
+    requiresAuth = true
+  ): Promise<T> {
     const headers = new Headers(options.headers ?? {});
-    headers.set('Content-Type', 'application/json');
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
+    if (!isFormData && !headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
 
     if (requiresAuth) {
       if (!token) throw new Error('Admin token yok. Önce giriş yapın.');
@@ -111,13 +227,19 @@ export default function AdminPage() {
       headers
     });
 
-    const body = await response.json().catch(() => ({}));
+    const contentType = response.headers.get('content-type') ?? '';
+    const body = contentType.includes('application/json')
+      ? await response.json().catch(() => ({}))
+      : await response.text().catch(() => '');
 
     if (!response.ok) {
-      throw new Error(body?.message ?? `Request failed: ${response.status}`);
+      if (body && typeof body === 'object' && 'message' in body) {
+        throw new Error(String(body.message));
+      }
+      throw new Error(`Request failed: ${response.status}`);
     }
 
-    return body;
+    return body as T;
   }
 
   async function refreshAdminData() {
@@ -126,10 +248,10 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const [mealRes, ingRes, recipeRes, sugRes] = await Promise.all([
-        apiFetch('/api/admin/meal-types'),
-        apiFetch('/api/admin/ingredients'),
-        apiFetch('/api/admin/recipes'),
-        apiFetch('/api/admin/suggestions?status=pending')
+        apiFetch<{ items: MealTypeRow[] }>('/api/admin/meal-types'),
+        apiFetch<{ items: IngredientRow[] }>('/api/admin/ingredients'),
+        apiFetch<{ items: RecipeRow[] }>('/api/admin/recipes?includeInactive=1'),
+        apiFetch<{ items: SuggestionRow[] }>('/api/admin/suggestions?status=pending')
       ]);
 
       setMealTypes(mealRes.items ?? []);
@@ -165,6 +287,9 @@ export default function AdminPage() {
     setIngredients([]);
     setRecipes([]);
     setSuggestions([]);
+    resetMealTypeForm();
+    resetIngredientForm();
+    resetRecipeForm();
     setStatus('Çıkış yapıldı.');
   }
 
@@ -178,10 +303,12 @@ export default function AdminPage() {
           id: mealTypeForm.id || undefined,
           name: mealTypeForm.name,
           order: Number(mealTypeForm.order || 0),
+          imageUrl: mealTypeForm.imageUrl,
+          lottieUrl: mealTypeForm.lottieUrl,
           isActive: mealTypeForm.isActive
         })
       });
-      setMealTypeForm({ id: '', name: '', order: '0', isActive: true });
+      resetMealTypeForm();
       await refreshAdminData();
       setStatus('Meal type kaydedildi.');
     } catch (error) {
@@ -206,14 +333,7 @@ export default function AdminPage() {
           isActive: ingredientForm.isActive
         })
       });
-      setIngredientForm({
-        id: '',
-        displayName: '',
-        category: 'Diğer',
-        emoji: '🍽️',
-        aliases: '',
-        isActive: true
-      });
+      resetIngredientForm();
       await refreshAdminData();
       setStatus('Ingredient kaydedildi.');
     } catch (error) {
@@ -245,20 +365,7 @@ export default function AdminPage() {
         })
       });
 
-      setRecipeForm({
-        id: '',
-        title: '',
-        description: '',
-        mealTypeIds: '',
-        ingredients: '',
-        steps: '',
-        imageUrl: '',
-        sourceUrl: '',
-        youtubeUrl: '',
-        cookingTime: '',
-        difficulty: '',
-        isActive: true
-      });
+      resetRecipeForm();
       await refreshAdminData();
       setStatus('Recipe kaydedildi.');
     } catch (error) {
@@ -268,11 +375,69 @@ export default function AdminPage() {
     }
   }
 
+  async function deleteMealTypeById(id: string) {
+    if (!window.confirm('Meal type silinsin mi?')) return;
+
+    setLoading(true);
+    try {
+      await apiFetch('/api/admin/meal-types', {
+        method: 'DELETE',
+        body: JSON.stringify({ id })
+      });
+      if (editingMealTypeId === id) resetMealTypeForm();
+      await refreshAdminData();
+      setStatus('Meal type silindi.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Meal type silinemedi');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deleteIngredientById(id: string) {
+    if (!window.confirm('Ingredient silinsin mi?')) return;
+
+    setLoading(true);
+    try {
+      await apiFetch('/api/admin/ingredients', {
+        method: 'DELETE',
+        body: JSON.stringify({ id })
+      });
+      if (editingIngredientId === id) resetIngredientForm();
+      await refreshAdminData();
+      setStatus('Ingredient silindi.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Ingredient silinemedi');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deleteRecipeById(id: string) {
+    if (!window.confirm('Recipe silinsin mi?')) return;
+
+    setLoading(true);
+    try {
+      await apiFetch('/api/admin/recipes', {
+        method: 'DELETE',
+        body: JSON.stringify({ id })
+      });
+      if (selectedRecipe?.id === id) setSelectedRecipe(null);
+      if (editingRecipeId === id) resetRecipeForm();
+      await refreshAdminData();
+      setStatus('Recipe silindi.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Recipe silinemedi');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function importJson() {
     setLoading(true);
     try {
       const parsed = JSON.parse(jsonPayload);
-      const response = await apiFetch('/api/admin/import/json', {
+      const response = await apiFetch<{ imported: Record<string, number> }>('/api/admin/import/json', {
         method: 'POST',
         body: JSON.stringify(parsed)
       });
@@ -288,7 +453,7 @@ export default function AdminPage() {
   async function importCsv() {
     setLoading(true);
     try {
-      const response = await apiFetch('/api/admin/import/csv', {
+      const response = await apiFetch<{ imported: number }>('/api/admin/import/csv', {
         method: 'POST',
         body: JSON.stringify({ target: csvTarget, csv: csvPayload })
       });
@@ -329,6 +494,33 @@ export default function AdminPage() {
     if (!file) return;
     const content = await file.text();
     setCsvPayload(content);
+  }
+
+  async function uploadRecipeImage(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingRecipeImage(true);
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await apiFetch<{ url: string }>('/api/admin/upload-image', {
+        method: 'POST',
+        body: formData
+      });
+
+      setRecipeForm((prev) => ({ ...prev, imageUrl: response.url ?? '' }));
+      setStatus('Recipe fotoğrafı yüklendi.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Fotoğraf yükleme hatası');
+    } finally {
+      setUploadingRecipeImage(false);
+      setLoading(false);
+      event.target.value = '';
+    }
   }
 
   return (
@@ -385,7 +577,7 @@ export default function AdminPage() {
         <>
           <section className="grid">
             <form className="card" onSubmit={saveMealType}>
-              <h2>Meal Type Ekle</h2>
+              <h2>{editingMealTypeId ? 'Meal Type Düzenle' : 'Meal Type Ekle'}</h2>
               <div className="field">
                 <label>ID (opsiyonel)</label>
                 <input
@@ -408,13 +600,50 @@ export default function AdminPage() {
                   onChange={(e) => setMealTypeForm((prev) => ({ ...prev, order: e.target.value }))}
                 />
               </div>
-              <button type="submit" disabled={loading}>
-                Kaydet
-              </button>
+              <div className="field">
+                <label>Görsel URL</label>
+                <input
+                  value={mealTypeForm.imageUrl}
+                  onChange={(e) => setMealTypeForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>Lottie URL</label>
+                <input
+                  value={mealTypeForm.lottieUrl}
+                  onChange={(e) => setMealTypeForm((prev) => ({ ...prev, lottieUrl: e.target.value }))}
+                />
+              </div>
+              <div className="field checkbox">
+                <input
+                  id="meal-type-active"
+                  type="checkbox"
+                  checked={mealTypeForm.isActive}
+                  onChange={(e) => setMealTypeForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                />
+                <label htmlFor="meal-type-active">Aktif</label>
+              </div>
+              <div className="row">
+                <button type="submit" disabled={loading}>
+                  {editingMealTypeId ? 'Güncelle' : 'Kaydet'}
+                </button>
+                {editingMealTypeId && (
+                  <button type="button" className="secondary" onClick={resetMealTypeForm}>
+                    İptal
+                  </button>
+                )}
+              </div>
             </form>
 
             <form className="card" onSubmit={saveIngredient}>
-              <h2>Ingredient Ekle</h2>
+              <h2>{editingIngredientId ? 'Ingredient Düzenle' : 'Ingredient Ekle'}</h2>
+              <div className="field">
+                <label>ID (opsiyonel)</label>
+                <input
+                  value={ingredientForm.id}
+                  onChange={(e) => setIngredientForm((prev) => ({ ...prev, id: e.target.value }))}
+                />
+              </div>
               <div className="field">
                 <label>Ad</label>
                 <input
@@ -446,13 +675,36 @@ export default function AdminPage() {
                   onChange={(e) => setIngredientForm((prev) => ({ ...prev, aliases: e.target.value }))}
                 />
               </div>
-              <button type="submit" disabled={loading}>
-                Kaydet
-              </button>
+              <div className="field checkbox">
+                <input
+                  id="ingredient-active"
+                  type="checkbox"
+                  checked={ingredientForm.isActive}
+                  onChange={(e) => setIngredientForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                />
+                <label htmlFor="ingredient-active">Aktif</label>
+              </div>
+              <div className="row">
+                <button type="submit" disabled={loading}>
+                  {editingIngredientId ? 'Güncelle' : 'Kaydet'}
+                </button>
+                {editingIngredientId && (
+                  <button type="button" className="secondary" onClick={resetIngredientForm}>
+                    İptal
+                  </button>
+                )}
+              </div>
             </form>
 
             <form className="card" onSubmit={saveRecipe}>
-              <h2>Recipe Ekle</h2>
+              <h2>{editingRecipeId ? 'Recipe Düzenle' : 'Recipe Ekle'}</h2>
+              <div className="field">
+                <label>ID (opsiyonel)</label>
+                <input
+                  value={recipeForm.id}
+                  onChange={(e) => setRecipeForm((prev) => ({ ...prev, id: e.target.value }))}
+                />
+              </div>
               <div className="field">
                 <label>Başlık</label>
                 <input
@@ -492,9 +744,72 @@ export default function AdminPage() {
                   onChange={(e) => setRecipeForm((prev) => ({ ...prev, steps: e.target.value }))}
                 />
               </div>
-              <button type="submit" disabled={loading}>
-                Kaydet
-              </button>
+              <div className="field">
+                <label>Fotoğraf yükle</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={uploadRecipeImage}
+                  disabled={loading || uploadingRecipeImage}
+                />
+                <div className="meta">
+                  {uploadingRecipeImage ? 'Yükleniyor...' : 'Yükledikten sonra URL otomatik doldurulur.'}
+                </div>
+              </div>
+              <div className="field">
+                <label>Image URL</label>
+                <input
+                  value={recipeForm.imageUrl}
+                  onChange={(e) => setRecipeForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>Kaynak URL</label>
+                <input
+                  value={recipeForm.sourceUrl}
+                  onChange={(e) => setRecipeForm((prev) => ({ ...prev, sourceUrl: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>YouTube URL</label>
+                <input
+                  value={recipeForm.youtubeUrl}
+                  onChange={(e) => setRecipeForm((prev) => ({ ...prev, youtubeUrl: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>Pişirme Süresi</label>
+                <input
+                  value={recipeForm.cookingTime}
+                  onChange={(e) => setRecipeForm((prev) => ({ ...prev, cookingTime: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>Zorluk</label>
+                <input
+                  value={recipeForm.difficulty}
+                  onChange={(e) => setRecipeForm((prev) => ({ ...prev, difficulty: e.target.value }))}
+                />
+              </div>
+              <div className="field checkbox">
+                <input
+                  id="recipe-active"
+                  type="checkbox"
+                  checked={recipeForm.isActive}
+                  onChange={(e) => setRecipeForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                />
+                <label htmlFor="recipe-active">Aktif</label>
+              </div>
+              <div className="row">
+                <button type="submit" disabled={loading}>
+                  {editingRecipeId ? 'Güncelle' : 'Kaydet'}
+                </button>
+                {editingRecipeId && (
+                  <button type="button" className="secondary" onClick={resetRecipeForm}>
+                    İptal
+                  </button>
+                )}
+              </div>
             </form>
           </section>
 
@@ -580,10 +895,28 @@ export default function AdminPage() {
             <div className="card">
               <h2>Meal Types ({mealTypes.length})</h2>
               <ul className="list">
-                {mealTypes.slice(0, 8).map((item) => (
+                {mealTypes.map((item) => (
                   <li key={item.id}>
-                    <strong>{item.name}</strong>
-                    <div className="meta mono">{item.id}</div>
+                    <div className="list-row">
+                      <div>
+                        <strong>{item.name}</strong>
+                        {!item.isActive && <span className="meta"> (pasif)</span>}
+                        <div className="meta mono">{item.id}</div>
+                        {item.imageUrl && (
+                          <a className="meta" href={item.imageUrl} target="_blank" rel="noreferrer">
+                            imageUrl
+                          </a>
+                        )}
+                      </div>
+                      <div className="row">
+                        <button type="button" className="secondary" onClick={() => startMealTypeEdit(item)}>
+                          Düzenle
+                        </button>
+                        <button type="button" className="danger" onClick={() => deleteMealTypeById(item.id)}>
+                          Sil
+                        </button>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -592,10 +925,24 @@ export default function AdminPage() {
             <div className="card">
               <h2>Ingredients ({ingredients.length})</h2>
               <ul className="list">
-                {ingredients.slice(0, 8).map((item) => (
+                {ingredients.map((item) => (
                   <li key={item.id}>
-                    <strong>{item.displayName}</strong>
-                    <div className="meta mono">{item.id}</div>
+                    <div className="list-row">
+                      <div>
+                        <strong>{item.emoji} {item.displayName}</strong>
+                        {!item.isActive && <span className="meta"> (pasif)</span>}
+                        <div className="meta mono">{item.id}</div>
+                        <div className="meta">kategori: {item.category}</div>
+                      </div>
+                      <div className="row">
+                        <button type="button" className="secondary" onClick={() => startIngredientEdit(item)}>
+                          Düzenle
+                        </button>
+                        <button type="button" className="danger" onClick={() => deleteIngredientById(item.id)}>
+                          Sil
+                        </button>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -604,16 +951,100 @@ export default function AdminPage() {
             <div className="card">
               <h2>Recipes ({recipes.length})</h2>
               <ul className="list">
-                {recipes.slice(0, 8).map((item) => (
+                {recipes.map((item) => (
                   <li key={item.id}>
-                    <strong>{item.title}</strong>
-                    <div className="meta mono">{item.id}</div>
+                    <div className="list-row">
+                      <div>
+                        <strong>{item.title}</strong>
+                        {!item.isActive && <span className="meta"> (pasif)</span>}
+                        <div className="meta mono">{item.id}</div>
+                        <div className="meta">{item.ingredientIds.length} ingredient</div>
+                      </div>
+                      <div className="row">
+                        <button type="button" onClick={() => setSelectedRecipe(item)}>
+                          Detay
+                        </button>
+                        <button type="button" className="secondary" onClick={() => startRecipeEdit(item)}>
+                          Düzenle
+                        </button>
+                        <button type="button" className="danger" onClick={() => deleteRecipeById(item.id)}>
+                          Sil
+                        </button>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
             </div>
           </section>
         </>
+      )}
+
+      {selectedRecipe && (
+        <div className="modal-overlay" onClick={() => setSelectedRecipe(null)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{selectedRecipe.title}</h2>
+              <button type="button" className="secondary" onClick={() => setSelectedRecipe(null)}>
+                Kapat
+              </button>
+            </div>
+
+            <div className="meta mono">{selectedRecipe.id}</div>
+
+            {selectedRecipe.imageUrl && (
+              <img
+                src={selectedRecipe.imageUrl}
+                alt={selectedRecipe.title}
+                className="recipe-image"
+              />
+            )}
+
+            <p>{selectedRecipe.description || 'Açıklama yok.'}</p>
+
+            <div className="row">
+              {selectedRecipe.sourceUrl && (
+                <a href={selectedRecipe.sourceUrl} target="_blank" rel="noreferrer">
+                  Kaynak Linki
+                </a>
+              )}
+              {selectedRecipe.youtubeUrl && (
+                <a href={selectedRecipe.youtubeUrl} target="_blank" rel="noreferrer">
+                  YouTube Linki
+                </a>
+              )}
+            </div>
+
+            <div className="detail-grid">
+              <div>
+                <h3>Meal Types</h3>
+                <p className="meta">{selectedRecipe.mealTypeIds.join(', ') || '-'}</p>
+              </div>
+              <div>
+                <h3>Pişirme</h3>
+                <p className="meta">
+                  Süre: {selectedRecipe.cookingTime || '-'} | Zorluk: {selectedRecipe.difficulty || '-'}
+                </p>
+              </div>
+            </div>
+
+            <h3>Ingredients</h3>
+            <ul>
+              {selectedRecipe.ingredients.map((item, index) => (
+                <li key={`${item}-${index}`}>{item}</li>
+              ))}
+              {selectedRecipe.ingredients.length === 0 && <li>-</li>}
+            </ul>
+
+            <h3>Steps</h3>
+            <ol>
+              {selectedRecipe.steps.map((step, index) => (
+                <li key={`${step}-${index}`}>{step}</li>
+              ))}
+              {selectedRecipe.steps.length === 0 && <li>-</li>}
+            </ol>
+          </div>
+        </div>
       )}
     </main>
   );
