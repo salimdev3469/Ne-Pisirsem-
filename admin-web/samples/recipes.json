@@ -1,0 +1,26 @@
+[
+  {
+    "id": "recipe_001",
+    "title": "Menemen",
+    "description": "Klasik Türk kahvaltısının vazgeçilmezi.",
+    "mealTypeIds": ["meal_kahvalti"],
+    "ingredients": [
+      "yumurta",
+      "domates",
+      "yeşil biber",
+      "zeytinyağı",
+      "tuz",
+      "karabiber"
+    ],
+    "steps": [
+      "Biberleri ince doğrayıp zeytinyağında kavurun.",
+      "Domatesleri ekleyip suyunu çekene kadar pişirin.",
+      "Yumurtaları kırıp kısık ateşte karıştırarak pişirin.",
+      "Tuz ve karabiber ekleyip servis edin."
+    ],
+    "imageUrl": "https://images.unsplash.com/photo-1590301157890-4810ed352733?w=800",
+    "sourceUrl": "https://www.nefisyemektarifleri.com/menemen-tarifi/",
+    "youtubeUrl": "https://www.youtube.com/results?search_query=menemen+tarifi",
+    "isActive": true
+  }
+]
