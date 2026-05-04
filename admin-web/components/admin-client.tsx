@@ -351,7 +351,9 @@ export default function AdminPage() {
       await refreshAdminData();
       setStatus('Meal type kaydedildi.');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Meal type kaydedilemedi');
+      const msg = error instanceof Error ? error.message : 'Meal type kaydedilemedi';
+      setStatus(msg);
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -376,7 +378,9 @@ export default function AdminPage() {
       await refreshAdminData();
       setStatus('Ingredient kaydedildi.');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Ingredient kaydedilemedi');
+      const msg = error instanceof Error ? error.message : 'Ingredient kaydedilemedi';
+      setStatus(msg);
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -413,7 +417,9 @@ export default function AdminPage() {
       await refreshAdminData();
       setStatus('Recipe kaydedildi.');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Recipe kaydedilemedi');
+      const msg = error instanceof Error ? error.message : 'Recipe kaydedilemedi';
+      setStatus(msg);
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -559,7 +565,9 @@ export default function AdminPage() {
       setRecipeForm((prev) => ({ ...prev, imageUrl: response.url ?? '' }));
       setStatus('Recipe fotoğrafı yüklendi.');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Fotoğraf yükleme hatası');
+      const msg = error instanceof Error ? error.message : 'Fotoğraf yükleme hatası';
+      setStatus(msg);
+      alert(msg);
     } finally {
       setUploadingRecipeImage(false);
       setLoading(false);
