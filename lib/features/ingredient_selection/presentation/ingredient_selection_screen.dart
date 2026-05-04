@@ -38,7 +38,7 @@ class IngredientSelectionScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => context.go(AppRouter.home),
+                    onPressed: () => context.pop(),
                     child: const Text('Yemek Türüne Dön'),
                   ),
                 ],
@@ -282,7 +282,7 @@ class _Header extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: () => context.go(AppRouter.home),
+                onPressed: () => context.pop(),
                 child: const Text('Tür Değiştir'),
               ),
             ],

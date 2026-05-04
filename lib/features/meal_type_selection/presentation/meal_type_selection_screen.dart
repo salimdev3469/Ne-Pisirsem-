@@ -83,11 +83,11 @@ class MealTypeSelectionScreen extends ConsumerWidget {
                           ref
                               .read(ingredientSearchQueryProvider.notifier)
                               .state = '';
-                          context.go(AppRouter.ingredientSelection);
+                          context.push(AppRouter.ingredientSelection);
                         },
                   onBrowseTap: selected == null
                       ? null
-                      : () => context.go(AppRouter.categoryRecipes),
+                      : () => context.push(AppRouter.categoryRecipes),
                 ),
               ],
             );
