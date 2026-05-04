@@ -122,6 +122,23 @@ export default function AdminPage() {
   const [csvPayload, setCsvPayload] = useState('');
   const [csvTarget, setCsvTarget] = useState<'mealTypes' | 'ingredients' | 'recipes'>('recipes');
 
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredMealTypes = mealTypes.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    item.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredIngredients = ingredients.filter(item => 
+    item.displayName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    item.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredRecipes = recipes.filter(item => 
+    item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    item.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, async (user) => {
       if (!user) {
@@ -293,10 +310,10 @@ export default function AdminPage() {
         apiFetch<{ items: SuggestionRow[] }>('/api/admin/suggestions?status=pending')
       ]);
 
-      setMealTypes(mealRes.items ?? []);
-      setIngredients(ingRes.items ?? []);
-      setRecipes(recipeRes.items ?? []);
-      setSuggestions(sugRes.items ?? []);
+      setMealTypes((mealRes.items ?? []).reverse());
+      setIngredients((ingRes.items ?? []).reverse());
+      setRecipes((recipeRes.items ?? []).reverse());
+      setSuggestions((sugRes.items ?? []).reverse());
       setStatus('Admin verileri yenilendi.');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Yenileme hatası');
@@ -970,11 +987,23 @@ export default function AdminPage() {
 
           <div className="hr" />
 
+          <section className="card" style={{ marginBottom: 24 }}>
+            <h2>Kayıtları Ara</h2>
+            <div className="field">
+              <input
+                type="text"
+                placeholder="Meal Type, Ingredient veya Recipe ara..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </section>
+
           <section className="grid">
             <div className="card">
-              <h2>Meal Types ({mealTypes.length})</h2>
+              <h2>Meal Types ({filteredMealTypes.length})</h2>
               <ul className="list">
-                {mealTypes.map((item) => (
+                {filteredMealTypes.map((item) => (
                   <li key={item.id}>
                     <div className="list-row">
                       <div>
@@ -1002,9 +1031,9 @@ export default function AdminPage() {
             </div>
 
             <div className="card">
-              <h2>Ingredients ({ingredients.length})</h2>
+              <h2>Ingredients ({filteredIngredients.length})</h2>
               <ul className="list">
-                {ingredients.map((item) => (
+                {filteredIngredients.map((item) => (
                   <li key={item.id}>
                     <div className="list-row">
                       <div>
@@ -1028,9 +1057,9 @@ export default function AdminPage() {
             </div>
 
             <div className="card">
-              <h2>Recipes ({recipes.length})</h2>
+              <h2>Recipes ({filteredRecipes.length})</h2>
               <ul className="list">
-                {recipes.map((item) => (
+                {filteredRecipes.map((item) => (
                   <li key={item.id}>
                     <div className="list-row">
                       <div>
