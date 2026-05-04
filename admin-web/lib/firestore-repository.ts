@@ -32,6 +32,32 @@ function asNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
+function extractIngredientIdsFromRefs(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const ids: string[] = [];
+  for (const item of value) {
+    if (typeof item === 'string') {
+      const normalized = item.trim();
+      if (normalized) ids.push(normalized);
+      continue;
+    }
+
+    if (item && typeof item === 'object') {
+      const row = item as Record<string, unknown>;
+      const id =
+        asString(row.ingredientId) ||
+        asString(row.id) ||
+        asString(row.ref) ||
+        asString(row.name);
+
+      if (id) ids.push(id);
+    }
+  }
+
+  return ids;
+}
+
 function mapMealType(id: string, data: Record<string, unknown>): MealTypeDoc {
   return {
     id,
@@ -57,18 +83,29 @@ function mapIngredient(id: string, data: Record<string, unknown>): IngredientDoc
 }
 
 function mapRecipe(id: string, data: Record<string, unknown>): RecipeDoc {
+  const ingredientIds =
+    asStringList(data.ingredientIds).length > 0
+      ? asStringList(data.ingredientIds)
+      : extractIngredientIdsFromRefs(data.ingredientRefs);
+
+  const cookingTimeText = asString(data.cookingTime);
+  const cookingTimeMinutes =
+    typeof data.cookingTimeMinutes === 'number' && Number.isFinite(data.cookingTimeMinutes)
+      ? `${Math.round(data.cookingTimeMinutes)} dk`
+      : '';
+
   return {
     id,
     title: asString(data.title),
     description: asString(data.description) || null,
     mealTypeIds: asStringList(data.mealTypeIds),
-    ingredientIds: asStringList(data.ingredientIds),
+    ingredientIds: [...new Set(ingredientIds)],
     ingredients: asStringList(data.ingredients),
     steps: asStringList(data.steps),
     imageUrl: asString(data.imageUrl) || null,
     sourceUrl: asString(data.sourceUrl) || null,
     youtubeUrl: asString(data.youtubeUrl) || null,
-    cookingTime: asString(data.cookingTime) || null,
+    cookingTime: cookingTimeText || cookingTimeMinutes || null,
     difficulty: asString(data.difficulty) || null,
     isActive: asBoolean(data.isActive, true)
   };
@@ -312,14 +349,40 @@ export async function decideSuggestion(input: {
   moderationNote?: string;
 }) {
   const ref = adminDb.collection(COLLECTIONS.ingredientSuggestions).doc(input.id.trim());
-  await ref.set(
-    {
-      status: input.status,
-      moderationNote: (input.moderationNote ?? '').trim() || null,
-      updatedAt: FieldValue.serverTimestamp()
-    },
-    { merge: true }
-  );
+  const snap = await ref.get();
+
+  if (!snap.exists) {
+    throw new Error('Suggestion not found.');
+  }
+
+  const data = snap.data() as Record<string, unknown>;
+  const name = asString(data.name);
+  const categoryHint = asString(data.categoryHint);
+
+  let ingredientId: string | null = null;
+  if (input.status === 'approved' && !name) {
+    throw new Error('Approved suggestion has no name.');
+  }
+
+  if (input.status === 'approved' && name) {
+    ingredientId = await upsertIngredient({
+      displayName: name,
+      category: categoryHint || 'Diğer',
+      isActive: true
+    });
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    status: input.status,
+    moderationNote: (input.moderationNote ?? '').trim() || null,
+    updatedAt: FieldValue.serverTimestamp()
+  };
+
+  if (ingredientId) {
+    updatePayload.resolvedIngredientId = ingredientId;
+  }
+
+  await ref.set(updatePayload, { merge: true });
 }
 
 export async function deleteMealType(id: string): Promise<void> {

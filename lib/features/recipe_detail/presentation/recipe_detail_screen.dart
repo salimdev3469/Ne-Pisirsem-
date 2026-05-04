@@ -5,8 +5,15 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/recipe.dart';
 
 class RecipeDetailScreen extends StatelessWidget {
-  final RecipeMatch match;
-  const RecipeDetailScreen({super.key, required this.match});
+  final Recipe recipe;
+  final RecipeMatch? match;
+
+  RecipeDetailScreen({super.key, required RecipeMatch match})
+      : recipe = match.recipe,
+        match = match;
+
+  RecipeDetailScreen.fromRecipe({super.key, required this.recipe})
+      : match = null;
 
   Future<void> _launchUrl(String? url) async {
     if (url == null || url.trim().isEmpty) return;
@@ -18,11 +25,12 @@ class RecipeDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recipe = match.recipe;
-    final pct = match.matchPercentage;
+    final pct = match?.matchPercentage ?? 0;
     final hasImage = (recipe.imageUrl ?? '').isNotEmpty;
     final hasYoutube = (recipe.youtubeUrl ?? '').isNotEmpty;
     final hasSource = (recipe.sourceUrl ?? '').isNotEmpty;
+    final matchedIngredients = match?.matchedIngredients ?? const <String>[];
+    final missingIngredients = match?.missingIngredients ?? const <String>[];
 
     return Scaffold(
       body: CustomScrollView(
@@ -103,33 +111,35 @@ class RecipeDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Match badge
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _matchColor(pct).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border:
-                          Border.all(color: _matchColor(pct).withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check_circle_rounded,
-                            size: 16, color: _matchColor(pct)),
-                        const SizedBox(width: 6),
-                        Text(
-                          '%${pct.round()} malzeme uyumlu  •  ${match.matchCount}/${recipe.ingredients.length}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _matchColor(pct),
+                  if (match != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _matchColor(pct).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: _matchColor(pct).withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle_rounded,
+                              size: 16, color: _matchColor(pct)),
+                          const SizedBox(width: 6),
+                          Text(
+                            '%${pct.round()} malzeme uyumlu  •  ${match!.matchCount}/${recipe.ingredients.length}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _matchColor(pct),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Title
                   Text(
@@ -178,12 +188,12 @@ class RecipeDetailScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _IngredientsGrid(
                     ingredients: recipe.ingredients,
-                    matchedIngredients: match.matchedIngredients,
+                    matchedIngredients: matchedIngredients,
                   ),
                   const SizedBox(height: 28),
 
                   // Missing ingredients
-                  if (match.missingIngredients.isNotEmpty) ...[
+                  if (missingIngredients.isNotEmpty) ...[
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -201,7 +211,7 @@ class RecipeDetailScreen extends StatelessWidget {
                                   size: 16, color: AppTheme.accent),
                               const SizedBox(width: 6),
                               Text(
-                                'Eksik malzemeler (${match.missingIngredients.length})',
+                                'Eksik malzemeler (${missingIngredients.length})',
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
@@ -214,7 +224,7 @@ class RecipeDetailScreen extends StatelessWidget {
                           Wrap(
                             spacing: 6,
                             runSpacing: 4,
-                            children: match.missingIngredients
+                            children: missingIngredients
                                 .map(
                                   (ing) => Text(
                                     '• $ing',

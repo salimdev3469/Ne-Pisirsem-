@@ -110,6 +110,7 @@ export default function AdminPage() {
   const [mealTypeForm, setMealTypeForm] = useState(initialMealTypeForm);
   const [ingredientForm, setIngredientForm] = useState(initialIngredientForm);
   const [recipeForm, setRecipeForm] = useState(initialRecipeForm);
+  const [recipeMealTypeSelectId, setRecipeMealTypeSelectId] = useState('');
 
   const [editingMealTypeId, setEditingMealTypeId] = useState<string | null>(null);
   const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null);
@@ -157,6 +158,7 @@ export default function AdminPage() {
 
   function resetRecipeForm() {
     setRecipeForm(initialRecipeForm);
+    setRecipeMealTypeSelectId('');
     setEditingRecipeId(null);
   }
 
@@ -188,6 +190,7 @@ export default function AdminPage() {
 
   function startRecipeEdit(item: RecipeRow) {
     setEditingRecipeId(item.id);
+    setRecipeMealTypeSelectId('');
     setRecipeForm({
       id: item.id,
       title: item.title,
@@ -203,6 +206,42 @@ export default function AdminPage() {
       isActive: item.isActive
     });
     setStatus(`Recipe düzenleniyor: ${item.title}`);
+  }
+
+  const recipeSelectedMealTypeIds = useMemo(
+    () => splitMultiValue(recipeForm.mealTypeIds),
+    [recipeForm.mealTypeIds]
+  );
+
+  const mealTypeNameById = useMemo(
+    () =>
+      new Map<string, string>(
+        mealTypes.map((item) => [item.id, item.name])
+      ),
+    [mealTypes]
+  );
+
+  function setRecipeMealTypeIds(ids: string[]) {
+    setRecipeForm((prev) => ({
+      ...prev,
+      mealTypeIds: ids.join('\n')
+    }));
+  }
+
+  function addMealTypeToRecipe() {
+    const nextId = recipeMealTypeSelectId.trim();
+    if (!nextId) return;
+
+    const ids = splitMultiValue(recipeForm.mealTypeIds);
+    if (ids.includes(nextId)) return;
+
+    setRecipeMealTypeIds([...ids, nextId]);
+    setRecipeMealTypeSelectId('');
+  }
+
+  function removeMealTypeFromRecipe(id: string) {
+    const ids = splitMultiValue(recipeForm.mealTypeIds).filter((item) => item !== id);
+    setRecipeMealTypeIds(ids);
   }
 
   async function apiFetch<T = Record<string, unknown>>(
@@ -347,13 +386,18 @@ export default function AdminPage() {
     event.preventDefault();
     setLoading(true);
     try {
+      const mealTypeIds = splitMultiValue(recipeForm.mealTypeIds);
+      if (mealTypeIds.length === 0) {
+        throw new Error('En az bir yemek türü seçmelisin.');
+      }
+
       await apiFetch('/api/admin/recipes', {
         method: 'POST',
         body: JSON.stringify({
           id: recipeForm.id || undefined,
           title: recipeForm.title,
           description: recipeForm.description,
-          mealTypeIds: splitMultiValue(recipeForm.mealTypeIds),
+          mealTypeIds,
           ingredients: splitMultiValue(recipeForm.ingredients),
           steps: splitMultiValue(recipeForm.steps),
           imageUrl: recipeForm.imageUrl,
@@ -721,12 +765,39 @@ export default function AdminPage() {
                 />
               </div>
               <div className="field">
-                <label>MealType IDs (virgül/newline/|)</label>
-                <textarea
-                  required
-                  value={recipeForm.mealTypeIds}
-                  onChange={(e) => setRecipeForm((prev) => ({ ...prev, mealTypeIds: e.target.value }))}
-                />
+                <label>Yemek Türü Seç</label>
+                <div className="row">
+                  <select
+                    value={recipeMealTypeSelectId}
+                    onChange={(e) => setRecipeMealTypeSelectId(e.target.value)}
+                  >
+                    <option value="">Yemek türü seç...</option>
+                    {mealTypes.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} ({item.id})
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" className="secondary" onClick={addMealTypeToRecipe}>
+                    Ekle
+                  </button>
+                </div>
+                <div className="row" style={{ marginTop: 8 }}>
+                  {recipeSelectedMealTypeIds.map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className="secondary"
+                      onClick={() => removeMealTypeFromRecipe(id)}
+                      title="Kaldır"
+                    >
+                      {mealTypeNameById.get(id) ?? id} ×
+                    </button>
+                  ))}
+                </div>
+                <div className="meta">
+                  Seçilen ID&apos;ler: {recipeSelectedMealTypeIds.join(', ') || '-'}
+                </div>
               </div>
               <div className="field">
                 <label>Ingredients (virgül/newline/|)</label>

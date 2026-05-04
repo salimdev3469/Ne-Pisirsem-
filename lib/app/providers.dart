@@ -91,6 +91,8 @@ final filteredRecipesProvider = FutureProvider<List<RecipeMatch>>((ref) async {
   final selectedMealType = ref.watch(selectedMealTypeProvider);
   if (selectedMealType == null) return const [];
 
+  final bootstrapData = await ref.watch(bootstrapDataProvider.future);
+
   final allIngredients = ref.watch(allIngredientsProvider);
   final ingredientNameById = <String, String>{
     for (final ingredient in allIngredients)
@@ -108,12 +110,28 @@ final filteredRecipesProvider = FutureProvider<List<RecipeMatch>>((ref) async {
         .trim();
   }
 
-  final apiItems = await ref.watch(bootstrapRepositoryProvider).fetchRecommendations(
-        mealTypeId: selectedMealType.id,
-        ingredientIds: selected.map((item) => item.id).toList(),
-        limit: 30,
-        minScore: 85,
-      );
+  final repository = ref.watch(bootstrapRepositoryProvider);
+  final selectedIngredientIds = selected.map((item) => item.id).toList();
+  final strictMinScore = bootstrapData.config.minMatchScore <= 0
+      ? 85.0
+      : bootstrapData.config.minMatchScore;
+  final relaxedMinScore = strictMinScore > 35 ? 35.0 : strictMinScore;
+
+  var apiItems = await repository.fetchRecommendations(
+    mealTypeId: selectedMealType.id,
+    ingredientIds: selectedIngredientIds,
+    limit: 30,
+    minScore: strictMinScore,
+  );
+
+  if (apiItems.isEmpty && relaxedMinScore < strictMinScore) {
+    apiItems = await repository.fetchRecommendations(
+      mealTypeId: selectedMealType.id,
+      ingredientIds: selectedIngredientIds,
+      limit: 30,
+      minScore: relaxedMinScore,
+    );
+  }
 
   final mapped = apiItems
       .where((item) => item.recipe != null)
@@ -152,4 +170,54 @@ final filteredRecipesProvider = FutureProvider<List<RecipeMatch>>((ref) async {
 
   mapped.sort((a, b) => b.matchPercentage.compareTo(a.matchPercentage));
   return mapped;
+});
+
+final categoryRecipesProvider = FutureProvider<List<Recipe>>((ref) async {
+  final selectedMealType = ref.watch(selectedMealTypeProvider);
+  if (selectedMealType == null) return const [];
+
+  final allIngredients = ref.watch(allIngredientsProvider);
+  final ingredientNameById = <String, String>{
+    for (final ingredient in allIngredients)
+      _normalizeIdentity(ingredient.id): ingredient.name,
+  };
+
+  String resolveIngredientName(String raw) {
+    final normalized = _normalizeIdentity(raw);
+    final resolved = ingredientNameById[normalized];
+    if (resolved != null && resolved.isNotEmpty) return resolved;
+
+    return raw.replaceFirst('ing_', '').replaceAll('_', ' ').trim();
+  }
+
+  final repository = ref.watch(bootstrapRepositoryProvider);
+  final apiRecipes = await repository.fetchRecipesByMealType(
+    mealTypeId: selectedMealType.id,
+    limit: 300,
+  );
+
+  final recipes = apiRecipes
+      .map((snapshot) {
+        final recipeIngredients = snapshot.ingredients.isNotEmpty
+            ? snapshot.ingredients
+            : snapshot.ingredientIds.map(resolveIngredientName).toList();
+
+        return Recipe(
+          id: snapshot.id,
+          title: snapshot.title,
+          mealTypeIds: snapshot.mealTypeIds,
+          ingredients: recipeIngredients,
+          steps: snapshot.steps,
+          imageUrl: snapshot.imageUrl,
+          sourceUrl: snapshot.sourceUrl,
+          youtubeUrl: snapshot.youtubeUrl,
+          description: snapshot.description,
+          cookingTime: snapshot.cookingTime,
+          difficulty: snapshot.difficulty,
+        );
+      })
+      .toList()
+    ..sort((a, b) => a.title.compareTo(b.title));
+
+  return recipes;
 });

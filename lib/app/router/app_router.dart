@@ -5,6 +5,7 @@ import '../../core/constants/app_constants.dart';
 import '../../features/ingredient_selection/presentation/ingredient_selection_screen.dart';
 import '../../features/meal_type_selection/presentation/meal_type_selection_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
+import '../../features/recipe_browser/presentation/recipe_browser_screen.dart';
 import '../../features/recipe_detail/presentation/recipe_detail_screen.dart';
 import '../../features/recipe_results/presentation/recipe_results_screen.dart';
 import '../../shared/models/recipe.dart';
@@ -13,8 +14,10 @@ class AppRouter {
   static const String onboarding = '/onboarding';
   static const String home = '/';
   static const String ingredientSelection = '/ingredients';
+  static const String categoryRecipes = '/category-recipes';
   static const String results = '/results';
   static const String detail = '/detail';
+  static const String detailRecipe = '/detail-recipe';
 
   static GoRouter createRouter() {
     return GoRouter(
@@ -48,6 +51,10 @@ class AppRouter {
           builder: (context, state) => const IngredientSelectionScreen(),
         ),
         GoRoute(
+          path: categoryRecipes,
+          builder: (context, state) => const RecipeBrowserScreen(),
+        ),
+        GoRoute(
           path: results,
           builder: (context, state) => const RecipeResultsScreen(),
         ),
@@ -56,6 +63,13 @@ class AppRouter {
           builder: (context, state) {
             final match = state.extra as RecipeMatch;
             return RecipeDetailScreen(match: match);
+          },
+        ),
+        GoRoute(
+          path: detailRecipe,
+          builder: (context, state) {
+            final recipe = state.extra as Recipe;
+            return RecipeDetailScreen.fromRecipe(recipe: recipe);
           },
         ),
       ],

@@ -169,6 +169,51 @@ class BootstrapRepository {
         .toList();
   }
 
+  Future<List<RecommendationApiRecipe>> fetchRecipesByMealType({
+    required String mealTypeId,
+    String query = '',
+    int limit = 200,
+  }) async {
+    final queryParams = <String, String>{
+      'mealTypeId': mealTypeId.trim(),
+      'limit': limit.toString(),
+    };
+
+    if (query.trim().isNotEmpty) {
+      queryParams['q'] = query.trim();
+    }
+
+    final uri = AppApiConfig.uri('/public/recipes')
+        .replace(queryParameters: queryParams);
+
+    final response = await _client.get(
+      uri,
+      headers: const {'Accept': 'application/json'},
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BootstrapRepositoryException(
+        'Public recipes API error: ${response.statusCode}',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw const BootstrapRepositoryException(
+        'Public recipes response is not a JSON object.',
+      );
+    }
+
+    final itemsRaw = decoded['items'];
+    if (itemsRaw is! List) return const [];
+
+    return itemsRaw
+        .whereType<Map<String, dynamic>>()
+        .map(RecommendationApiRecipe.fromJson)
+        .where((item) => item.id.isNotEmpty && item.title.isNotEmpty)
+        .toList();
+  }
+
   Future<IngredientSuggestionResult> submitIngredientSuggestion({
     required String name,
     String? categoryHint,

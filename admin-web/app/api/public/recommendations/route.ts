@@ -8,7 +8,7 @@ import { calculateRecipeScore, MIN_MATCH_SCORE } from '@/lib/scoring';
 export const dynamic = 'force-dynamic';
 
 const requestSchema = z.object({
-  mealTypeId: z.string().trim().default(''),
+  mealTypeId: z.string().trim().min(1, 'mealTypeId zorunlu.'),
   ingredientIds: z.array(z.string().trim()).min(1),
   limit: z.number().int().min(1).max(50).default(10),
   minScore: z.number().min(0).max(100).optional()

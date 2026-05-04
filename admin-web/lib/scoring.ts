@@ -9,7 +9,13 @@ const WEIGHTS = {
 export const MIN_MATCH_SCORE = 85;
 
 function uniqueNormalized(values: string[]): string[] {
-  return [...new Set(values.map((item) => normalizeText(item)).filter(Boolean))];
+  return [...new Set(values.map(normalizeIngredientIdentity).filter(Boolean))];
+}
+
+function normalizeIngredientIdentity(value: string): string {
+  const normalized = normalizeText(value).replace(/\s+/g, '_');
+  if (!normalized) return '';
+  return normalized.startsWith('ing_') ? normalized.slice(4) : normalized;
 }
 
 export function calculateRecipeScore(

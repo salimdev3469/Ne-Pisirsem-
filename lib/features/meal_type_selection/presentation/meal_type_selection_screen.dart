@@ -85,6 +85,9 @@ class MealTypeSelectionScreen extends ConsumerWidget {
                               .state = '';
                           context.go(AppRouter.ingredientSelection);
                         },
+                  onBrowseTap: selected == null
+                      ? null
+                      : () => context.go(AppRouter.categoryRecipes),
                 ),
               ],
             );
@@ -207,8 +210,13 @@ class _MealTypeCard extends StatelessWidget {
 class _BottomCTA extends StatelessWidget {
   final bool isEnabled;
   final VoidCallback? onTap;
+  final VoidCallback? onBrowseTap;
 
-  const _BottomCTA({required this.isEnabled, required this.onTap});
+  const _BottomCTA({
+    required this.isEnabled,
+    required this.onTap,
+    required this.onBrowseTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -225,22 +233,45 @@ class _BottomCTA extends StatelessWidget {
       ),
       child: SizedBox(
         width: double.infinity,
-        height: 56,
-        child: ElevatedButton.icon(
-          onPressed: onTap,
-          icon: const Icon(Icons.arrow_forward_rounded, color: Colors.white),
-          label: const Text(
-            'Malzeme Seçimine Geç',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: onTap,
+                icon:
+                    const Icon(Icons.arrow_forward_rounded, color: Colors.white),
+                label: const Text(
+                  'Malzeme Seçimine Geç',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      isEnabled ? AppTheme.primary : AppTheme.divider,
+                  elevation: isEnabled ? 2 : 0,
+                ),
+              ),
             ),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isEnabled ? AppTheme.primary : AppTheme.divider,
-            elevation: isEnabled ? 2 : 0,
-          ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: onBrowseTap,
+                icon: const Icon(Icons.search_rounded),
+                label: const Text(
+                  'Malzeme Seçmeden Kategoriye Göz At',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
