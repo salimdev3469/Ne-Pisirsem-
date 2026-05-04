@@ -110,7 +110,7 @@ class _Header extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text('🍽️', style: TextStyle(fontSize: 30)),
+              Image.asset('assets/logo_npisirsem.png', height: 40),
             ],
           ),
           const SizedBox(height: 6),
