@@ -25,8 +25,7 @@ export function ingredientIdFromName(name: string): string {
 }
 
 export function mealTypeIdFromName(name: string): string {
-  const normalized = normalizeText(name).replace(/\s+/g, '_');
-  return normalized.startsWith('meal_') ? normalized : `meal_${normalized}`;
+  return normalizeText(name).replace(/\s+/g, '_');
 }
 
 export function splitDelimitedList(value: string, delimiters: RegExp = /[|,;]/): string[] {

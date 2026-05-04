@@ -11,7 +11,7 @@ const COLLECTIONS = {
   ingredientSuggestions: 'ingredient_suggestions'
 } as const;
 
-const DEFAULT_MEAL_TYPE_ID = 'meal_genel';
+const DEFAULT_MEAL_TYPE_ID = 'genel';
 
 function asString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -126,11 +126,8 @@ function normalizeMealTypeIdentity(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return '';
 
-  if (trimmed.startsWith('meal_')) {
-    return normalizeText(trimmed);
-  }
-
-  return normalizeText(mealTypeIdFromName(trimmed));
+  const clean = trimmed.startsWith('meal_') ? trimmed.substring(5) : trimmed;
+  return mealTypeIdFromName(clean);
 }
 
 export async function fetchMealTypes(activeOnly = true): Promise<MealTypeDoc[]> {
